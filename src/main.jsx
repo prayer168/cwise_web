@@ -293,6 +293,15 @@ function App() {
           <h1>生態探員任務</h1>
         </div>
         <div className="top-actions">
+          <a
+            className="template-download-button"
+            href="assets/student-import-template.xlsx"
+            download="生態探員_學生資料匯入空白範本.xlsx"
+            title="下載匯入範本"
+          >
+            <Download size={18} />
+            <span>下載範本</span>
+          </a>
           <label className="icon-button file-action" title="匯入小組 Excel">
             <Table2 size={20} />
             <input type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={importWorkbook} />
