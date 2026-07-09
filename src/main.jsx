@@ -2,13 +2,19 @@ import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BarChart3,
+  CheckCircle2,
   ClipboardCheck,
+  Database,
   Download,
   FileDown,
+  FileJson,
   FlaskConical,
+  Gauge,
+  ImageUp,
   Leaf,
   Map,
   Microscope,
+  Plus,
   Presentation,
   RefreshCcw,
   Save,
@@ -34,6 +40,7 @@ import "./styles.css";
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend);
 
 const STORAGE_KEY = "eco-detective-state-v1";
+const CLASSROOM_KEY = "eco-detective-classroom-v2";
 
 const missions = [
   {
@@ -83,6 +90,37 @@ const missions = [
 const habitats = ["陽光草地", "樹蔭下", "花圃", "生態池旁", "牆角", "落葉堆"];
 const roles = ["觀察員", "測量員", "紀錄員", "攝影員"];
 const environmentCards = ["強風乾燥屋頂", "潮濕陰暗牆角", "污染水域", "烈日草地", "低溫高山"];
+const rubricItems = [
+  ["measurement", "測量紀錄", "工具、單位與重複測量清楚"],
+  ["evidence", "證據推論", "能用資料支持解釋並說明限制"],
+  ["collaboration", "合作分工", "角色分工明確並能互相支援"],
+  ["creativity", "創作應用", "適應生物合理、有創意且連結證據"],
+];
+
+const classroomSamples = [
+  {
+    groupCode: "B02",
+    habitat: "樹蔭下",
+    measurements: [
+      { site: "樹蔭下", temperature: 27, light: 260, humidity: 55, speciesCount: 9, note: "落葉層潮濕，有小型節肢動物" },
+      { site: "牆角", temperature: 28, light: 190, humidity: 51, speciesCount: 6, note: "牆縫附近有苔蘚" },
+    ],
+    inference: "樹蔭區濕度較高，生物種類也較多，但需要比較不同時間點。",
+    creature: { name: "苔影守衛", card: "潮濕陰暗牆角" },
+    rubric: { measurement: 4, evidence: 3, collaboration: 4, creativity: 4 },
+  },
+  {
+    groupCode: "C03",
+    habitat: "生態池旁",
+    measurements: [
+      { site: "生態池旁", temperature: 30, light: 610, humidity: 63, speciesCount: 10, note: "水邊昆蟲與植物種類多" },
+      { site: "花圃", temperature: 29, light: 520, humidity: 43, speciesCount: 7, note: "訪花昆蟲較明顯" },
+    ],
+    inference: "水域附近濕度高，可能提供更多棲地與食物來源。",
+    creature: { name: "濕地滑翔者", card: "污染水域" },
+    rubric: { measurement: 3, evidence: 4, collaboration: 3, creativity: 5 },
+  },
+];
 
 const starterState = {
   groupCode: "A01",
@@ -110,6 +148,7 @@ const starterState = {
   creature: {
     card: "潮濕陰暗牆角",
     name: "陰影滑行獸",
+    image: "",
     traits: [
       { structure: "薄而濕潤的皮膚", functionText: "在潮濕角落維持水分交換", evidence: "樹蔭與落葉堆濕度較高時，常見潮濕偏好的生物痕跡" },
       { structure: "扁平身體", functionText: "能躲入牆縫與落葉下", evidence: "微棲地遮蔽物多，能降低被發現機會" },
@@ -117,6 +156,20 @@ const starterState = {
     ],
   },
   peerReview: "證據清楚，但可以再補充測量次數與對照地點。",
+  missionStatus: {
+    adaptation: true,
+    tools: true,
+    habitat: true,
+    analysis: false,
+    creature: false,
+    expo: false,
+  },
+  rubric: {
+    measurement: 3,
+    evidence: 3,
+    collaboration: 4,
+    creativity: 4,
+  },
   selfReview: {
     strength: "我能把觀察結果整理成圖表。",
     improve: "我需要更注意測量單位與同一高度。",
@@ -127,18 +180,42 @@ const starterState = {
 function loadState() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? { ...starterState, ...JSON.parse(saved) } : starterState;
+    return normalizeState(saved ? { ...starterState, ...JSON.parse(saved) } : starterState);
   } catch {
     return starterState;
+  }
+}
+
+function normalizeState(value) {
+  return {
+    ...starterState,
+    ...value,
+    roles: { ...starterState.roles, ...(value.roles || {}) },
+    creature: { ...starterState.creature, ...(value.creature || {}) },
+    missionStatus: { ...starterState.missionStatus, ...(value.missionStatus || {}) },
+    rubric: { ...starterState.rubric, ...(value.rubric || {}) },
+    selfReview: { ...starterState.selfReview, ...(value.selfReview || {}) },
+  };
+}
+
+function loadClassroomData() {
+  try {
+    const saved = localStorage.getItem(CLASSROOM_KEY);
+    return saved ? JSON.parse(saved) : classroomSamples;
+  } catch {
+    return classroomSamples;
   }
 }
 
 function App() {
   const [activeView, setActiveView] = useState("mission");
   const [state, setState] = useState(loadState);
+  const [classroomData, setClassroomData] = useState(loadClassroomData);
   const [savedAt, setSavedAt] = useState("");
 
   const update = (patch) => setState((current) => ({ ...current, ...patch }));
+  const completedMissions = Object.values(state.missionStatus).filter(Boolean).length;
+  const progressPercent = Math.round((completedMissions / missions.length) * 100);
 
   const saveData = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -149,6 +226,33 @@ function App() {
     localStorage.removeItem(STORAGE_KEY);
     setState(starterState);
     setSavedAt("");
+  };
+
+  const saveToClassroom = () => {
+    setClassroomData((current) => {
+      const next = [state, ...current.filter((group) => group.groupCode !== state.groupCode)];
+      localStorage.setItem(CLASSROOM_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const importJson = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const imported = normalizeState(JSON.parse(await file.text()));
+      setState(imported);
+      setClassroomData((current) => {
+        const next = [imported, ...current.filter((group) => group.groupCode !== imported.groupCode)];
+        localStorage.setItem(CLASSROOM_KEY, JSON.stringify(next));
+        return next;
+      });
+      setSavedAt("已匯入");
+    } catch {
+      setSavedAt("匯入失敗");
+    } finally {
+      event.target.value = "";
+    }
   };
 
   const exportJson = () => downloadFile(`eco-detective-${state.groupCode}.json`, JSON.stringify(state, null, 2), "application/json");
@@ -179,6 +283,13 @@ function App() {
           <h1>生態探員任務</h1>
         </div>
         <div className="top-actions">
+          <label className="icon-button file-action" title="匯入小組 JSON">
+            <FileJson size={20} />
+            <input type="file" accept="application/json,.json" onChange={importJson} />
+          </label>
+          <button className="icon-button" onClick={saveToClassroom} title="加入班級展示">
+            <Database size={20} />
+          </button>
           <button className="icon-button" onClick={saveData} title="儲存">
             <Save size={20} />
           </button>
@@ -208,6 +319,10 @@ function App() {
           <strong>{state.measurements.length + state.observations.length}</strong>
         </div>
         <div>
+          <span>任務進度</span>
+          <strong>{progressPercent}%</strong>
+        </div>
+        <div>
           <span>儲存狀態</span>
           <strong>{savedAt ? `${savedAt} 已儲存` : "尚未儲存"}</strong>
         </div>
@@ -228,22 +343,35 @@ function App() {
         ))}
       </nav>
 
-      {activeView === "mission" && <MissionOverview state={state} update={update} />}
+      {activeView === "mission" && <MissionOverview state={state} update={update} progressPercent={progressPercent} />}
       {activeView === "student" && <StudentTasks state={state} update={update} />}
       {activeView === "data" && <DataDashboard state={state} update={update} chartData={chartData} />}
       {activeView === "portfolio" && <Portfolio state={state} />}
-      {activeView === "teacher" && <TeacherDisplay />}
+      {activeView === "teacher" && <TeacherDisplay state={state} classroomData={classroomData} setClassroomData={setClassroomData} />}
     </main>
   );
 }
 
-function MissionOverview({ state, update }) {
+function MissionOverview({ state, update, progressPercent }) {
+  const toggleMission = (id) => {
+    update({ missionStatus: { ...state.missionStatus, [id]: !state.missionStatus[id] } });
+  };
+
   return (
     <section className="page-grid mission-layout">
       <div className="hero-panel">
         <div className="hero-copy">
           <p className="eyebrow">用測量證據解開生物適應密碼</p>
           <h2>從校園微棲地出發，完成一場有證據的生態調查。</h2>
+          <div className="progress-block">
+            <div>
+              <span>任務完成度</span>
+              <strong>{progressPercent}%</strong>
+            </div>
+            <div className="progress-track" aria-label="任務完成度">
+              <i style={{ width: `${progressPercent}%` }} />
+            </div>
+          </div>
           <div className="entry-row">
             <label>
               <span>組別代碼</span>
@@ -271,12 +399,18 @@ function MissionOverview({ state, update }) {
       <div className="mission-track">
         {missions.map((mission, index) => {
           const Icon = mission.icon;
+          const done = Boolean(state.missionStatus[mission.id]);
           return (
-            <article className="mission-card" key={mission.id}>
+            <article className={`mission-card ${done ? "done" : ""}`} key={mission.id}>
               <div className="mission-index">{String(index + 1).padStart(2, "0")}</div>
               <Icon size={24} />
               <div>
-                <h3>{mission.title}</h3>
+                <div className="mission-heading">
+                  <h3>{mission.title}</h3>
+                  <button className="check-button" onClick={() => toggleMission(mission.id)} title={done ? "標記未完成" : "標記完成"}>
+                    {done ? <CheckCircle2 size={20} /> : <Plus size={20} />}
+                  </button>
+                </div>
                 <p>{mission.time}</p>
                 <span>{mission.focus}</span>
               </div>
@@ -337,7 +471,110 @@ function StudentTasks({ state, update }) {
         <PanelTitle icon={FlaskConical} title="測量與觀察紀錄" />
         <MeasurementEditor state={state} update={update} />
       </div>
+
+      <div className="panel wide">
+        <PanelTitle icon={Sparkles} title="最強適應生物設計" />
+        <CreatureDesigner state={state} update={update} />
+      </div>
+
+      <div className="panel wide">
+        <PanelTitle icon={ClipboardCheck} title="評量與反思" />
+        <AssessmentPanel state={state} update={update} />
+      </div>
     </section>
+  );
+}
+
+function CreatureDesigner({ state, update }) {
+  const creature = state.creature;
+  const updateCreature = (patch) => update({ creature: { ...creature, ...patch } });
+  const changeTrait = (index, field, value) => {
+    updateCreature({
+      traits: creature.traits.map((trait, traitIndex) => (traitIndex === index ? { ...trait, [field]: value } : trait)),
+    });
+  };
+  const addTrait = () => updateCreature({ traits: [...creature.traits, { structure: "", functionText: "", evidence: "" }] });
+  const removeTrait = (index) => updateCreature({ traits: creature.traits.filter((_, traitIndex) => traitIndex !== index) });
+  const handleImage = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => updateCreature({ image: reader.result });
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="creature-editor">
+      <div className="creature-form">
+        <label>
+          <span>環境卡</span>
+          <select value={creature.card} onChange={(event) => updateCreature({ card: event.target.value })}>
+            {environmentCards.map((card) => (
+              <option key={card}>{card}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>生物名稱</span>
+          <input value={creature.name} onChange={(event) => updateCreature({ name: event.target.value })} />
+        </label>
+      </div>
+      <div className="creature-workspace">
+        <div className="image-drop">
+          {creature.image ? <img src={creature.image} alt="最強適應生物作品" /> : <ImageUp size={44} />}
+          <label className="upload-button">
+            <span>上傳作品圖</span>
+            <input type="file" accept="image/*" onChange={handleImage} />
+          </label>
+        </div>
+        <div className="trait-editor">
+          {creature.traits.map((trait, index) => (
+            <div className="trait-row" key={index}>
+              <input value={trait.structure} onChange={(event) => changeTrait(index, "structure", event.target.value)} placeholder="構造或行為" />
+              <input value={trait.functionText} onChange={(event) => changeTrait(index, "functionText", event.target.value)} placeholder="功能" />
+              <input value={trait.evidence} onChange={(event) => changeTrait(index, "evidence", event.target.value)} placeholder="證據" />
+              <button className="small-button" onClick={() => removeTrait(index)}>刪除</button>
+            </div>
+          ))}
+          <button className="add-button" onClick={addTrait}>新增適應特徵</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AssessmentPanel({ state, update }) {
+  const updateRubric = (key, value) => update({ rubric: { ...state.rubric, [key]: Number(value) } });
+  return (
+    <div className="assessment-grid">
+      <div className="rubric-sliders">
+        {rubricItems.map(([key, label, description]) => (
+          <label key={key}>
+            <span>{label}：{state.rubric[key]} 分</span>
+            <input type="range" min="1" max="5" value={state.rubric[key]} onChange={(event) => updateRubric(key, event.target.value)} />
+            <small>{description}</small>
+          </label>
+        ))}
+      </div>
+      <div className="reflection-editor">
+        <label>
+          <span>同儕回饋</span>
+          <textarea value={state.peerReview} onChange={(event) => update({ peerReview: event.target.value })} rows={4} />
+        </label>
+        <label>
+          <span>我最會的探究能力</span>
+          <input value={state.selfReview.strength} onChange={(event) => update({ selfReview: { ...state.selfReview, strength: event.target.value } })} />
+        </label>
+        <label>
+          <span>我需要改進的測量技能</span>
+          <input value={state.selfReview.improve} onChange={(event) => update({ selfReview: { ...state.selfReview, improve: event.target.value } })} />
+        </label>
+        <label>
+          <span>我願意為校園生態做的一件事</span>
+          <input value={state.selfReview.action} onChange={(event) => update({ selfReview: { ...state.selfReview, action: event.target.value } })} />
+        </label>
+      </div>
+    </div>
   );
 }
 
@@ -444,12 +681,24 @@ function Portfolio({ state }) {
         <article className="span-two">
           <h3>最強適應生物</h3>
           <p><strong>{state.creature.card}</strong>：{state.creature.name}</p>
+          {state.creature.image && <img className="portfolio-creature-image" src={state.creature.image} alt="最強適應生物作品" />}
           <div className="trait-grid">
             {state.creature.traits.map((trait, index) => (
               <div key={index}>
                 <strong>{trait.structure}</strong>
                 <span>{trait.functionText}</span>
                 <small>{trait.evidence}</small>
+              </div>
+            ))}
+          </div>
+        </article>
+        <article className="span-two">
+          <h3>評量規準</h3>
+          <div className="score-grid">
+            {rubricItems.map(([key, label]) => (
+              <div key={key}>
+                <span>{label}</span>
+                <strong>{state.rubric[key]} / 5</strong>
               </div>
             ))}
           </div>
@@ -469,12 +718,69 @@ function Portfolio({ state }) {
   );
 }
 
-function TeacherDisplay() {
+function TeacherDisplay({ state, classroomData, setClassroomData }) {
+  const allGroups = [state, ...classroomData.filter((group) => group.groupCode !== state.groupCode)].map(normalizeState);
+  const classroomCharts = useMemo(() => buildClassroomChartData(allGroups), [allGroups]);
+  const averages = useMemo(() => summarizeClassroom(allGroups), [allGroups]);
+  const resetClassroom = () => {
+    localStorage.setItem(CLASSROOM_KEY, JSON.stringify(classroomSamples));
+    setClassroomData(classroomSamples);
+  };
+
   return (
     <section className="page-grid teacher-page">
+      <div className="panel wide dashboard-hero">
+        <PanelTitle icon={Gauge} title="班級儀表板" />
+        <div className="metric-grid">
+          <div>
+            <span>小組數</span>
+            <strong>{allGroups.length}</strong>
+          </div>
+          <div>
+            <span>平均種類數</span>
+            <strong>{averages.species}</strong>
+          </div>
+          <div>
+            <span>平均完成度</span>
+            <strong>{averages.progress}%</strong>
+          </div>
+          <div>
+            <span>平均評量分</span>
+            <strong>{averages.rubric} / 5</strong>
+          </div>
+        </div>
+      </div>
+      <div className="panel chart-panel">
+        <PanelTitle icon={BarChart3} title="各組生物種類數" />
+        <Bar data={classroomCharts.species} options={chartOptions("平均種類數")} />
+      </div>
+      <div className="panel chart-panel">
+        <PanelTitle icon={ClipboardCheck} title="各組評量總覽" />
+        <Bar data={classroomCharts.rubric} options={chartOptions("平均分數")} />
+      </div>
+      <div className="panel wide">
+        <div className="panel-title split-title">
+          <div>
+            <PanelTitle icon={Database} title="小組成果牆" />
+          </div>
+          <button className="small-button" onClick={resetClassroom}>重設範例資料</button>
+        </div>
+        <div className="group-wall">
+          {allGroups.map((group) => (
+            <article key={group.groupCode}>
+              <div className="group-wall-title">
+                <strong>{group.groupCode}</strong>
+                <span>{group.habitat}</span>
+              </div>
+              <p>{group.inference}</p>
+              <small>{group.creature.card}｜{group.creature.name}</small>
+            </article>
+          ))}
+        </div>
+      </div>
       <div className="panel">
         <PanelTitle icon={Leaf} title="課程時程" />
-        <img className="schedule-image" src="/assets/course-schedule.jpg" alt="課程時程表" />
+        <img className="schedule-image" src="./assets/course-schedule.jpg" alt="課程時程表" />
       </div>
       <div className="panel">
         <PanelTitle icon={ClipboardCheck} title="多元評量對應" />
@@ -554,6 +860,54 @@ function buildChartData(rows) {
       ],
     },
   };
+}
+
+function buildClassroomChartData(groups) {
+  const labels = groups.map((group) => group.groupCode || "未命名");
+  return {
+    species: {
+      labels,
+      datasets: [
+        {
+          label: "平均生物種類數",
+          data: groups.map((group) => average(group.measurements.map((row) => Number(row.speciesCount) || 0))),
+          backgroundColor: "#3b7f6f",
+          borderRadius: 6,
+        },
+      ],
+    },
+    rubric: {
+      labels,
+      datasets: rubricItems.map(([key, label], index) => ({
+        label,
+        data: groups.map((group) => Number(group.rubric?.[key]) || 0),
+        backgroundColor: ["#3b7f6f", "#b55b35", "#2979a8", "#d2a72c"][index],
+        borderRadius: 6,
+      })),
+    },
+  };
+}
+
+function summarizeClassroom(groups) {
+  const speciesValues = groups.flatMap((group) => group.measurements.map((row) => Number(row.speciesCount) || 0));
+  const progressValues = groups.map((group) => Math.round((Object.values(group.missionStatus || {}).filter(Boolean).length / missions.length) * 100));
+  const rubricValues = groups.flatMap((group) => rubricItems.map(([key]) => Number(group.rubric?.[key]) || 0));
+  return {
+    species: formatAverage(speciesValues),
+    progress: formatAverage(progressValues),
+    rubric: formatAverage(rubricValues),
+  };
+}
+
+function average(values) {
+  const valid = values.filter((value) => Number.isFinite(value));
+  if (!valid.length) return 0;
+  return Math.round((valid.reduce((sum, value) => sum + value, 0) / valid.length) * 10) / 10;
+}
+
+function formatAverage(values) {
+  const value = average(values);
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 function chartOptions(title) {

@@ -85,6 +85,20 @@ h1 {
   background: #ffffffcc;
 }
 
+.file-action {
+  position: relative;
+  overflow: hidden;
+}
+
+.file-action input,
+.upload-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .icon-button:hover,
 .view-tabs button:hover,
 .print-button:hover,
@@ -100,12 +114,45 @@ h1 {
 
 .status-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 1px;
   overflow: hidden;
   border: 1px solid rgba(32, 59, 53, 0.16);
   border-radius: 8px;
   background: rgba(32, 59, 53, 0.16);
+}
+
+.progress-block {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+  max-width: 480px;
+}
+
+.progress-block div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #5a6d67;
+  font-weight: 900;
+}
+
+.progress-block strong {
+  color: #b55b35;
+}
+
+.progress-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(47, 111, 97, 0.14);
+}
+
+.progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f6f61, #d2a72c);
 }
 
 .status-strip div {
@@ -137,6 +184,11 @@ label span {
   border-radius: 8px;
   background: rgba(237, 243, 238, 0.94);
   backdrop-filter: blur(12px);
+  scrollbar-width: none;
+}
+
+.view-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .view-tabs button {
@@ -260,6 +312,30 @@ textarea {
   background: rgba(255, 255, 255, 0.86);
 }
 
+.mission-card.done {
+  border-color: rgba(47, 111, 97, 0.4);
+  background: #f1f8f2;
+}
+
+.mission-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.check-button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(47, 111, 97, 0.24);
+  border-radius: 8px;
+  color: #2f6f61;
+  background: #fff;
+}
+
 .mission-index {
   color: #b55b35;
   font-size: 1.35rem;
@@ -312,6 +388,83 @@ textarea {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+}
+
+.creature-editor,
+.assessment-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.creature-form,
+.creature-workspace,
+.assessment-grid {
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+}
+
+.creature-form,
+.creature-workspace {
+  display: grid;
+  gap: 14px;
+}
+
+.image-drop {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  min-height: 280px;
+  border: 1px dashed rgba(47, 111, 97, 0.34);
+  border-radius: 8px;
+  color: #2f6f61;
+  background: #f4faf5;
+}
+
+.image-drop img,
+.portfolio-creature-image {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.upload-button {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid rgba(47, 111, 97, 0.24);
+  border-radius: 8px;
+  color: #173f35;
+  background: #fff;
+  font-weight: 900;
+}
+
+.trait-editor,
+.rubric-sliders,
+.reflection-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.trait-row {
+  display: grid;
+  grid-template-columns: 0.9fr 1fr 1.2fr 72px;
+  gap: 8px;
+  align-items: center;
+}
+
+.rubric-sliders label {
+  padding: 14px;
+  border: 1px solid rgba(32, 59, 53, 0.12);
+  border-radius: 8px;
+  background: #f8fbf8;
+}
+
+.rubric-sliders small {
+  display: block;
+  color: #5f716c;
 }
 
 .rule-list,
@@ -431,6 +584,91 @@ textarea {
   color: #2f6f61;
 }
 
+.portfolio-creature-image {
+  margin: 12px 0;
+  border: 1px solid rgba(32, 59, 53, 0.14);
+  background: #fff;
+}
+
+.score-grid,
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.score-grid div,
+.metric-grid div {
+  padding: 14px;
+  border: 1px solid rgba(47, 111, 97, 0.2);
+  border-radius: 8px;
+  background: #eef7f2;
+}
+
+.score-grid span,
+.metric-grid span {
+  display: block;
+  margin-bottom: 8px;
+  color: #5a6d67;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.score-grid strong,
+.metric-grid strong {
+  color: #173f35;
+  font-size: 1.25rem;
+}
+
+.dashboard-hero {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(238, 247, 242, 0.92));
+}
+
+.split-title {
+  justify-content: space-between;
+}
+
+.split-title .panel-title {
+  margin-bottom: 0;
+}
+
+.group-wall {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.group-wall article {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(32, 59, 53, 0.14);
+  border-radius: 8px;
+  background: #fbfcf8;
+}
+
+.group-wall p {
+  margin-bottom: 0;
+  color: #38514b;
+}
+
+.group-wall small {
+  color: #7a5b2f;
+  font-weight: 800;
+}
+
+.group-wall-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.group-wall-title strong {
+  color: #b55b35;
+  font-size: 1.2rem;
+}
+
 .trait-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -489,7 +727,13 @@ textarea {
   .teacher-page,
   .mission-track,
   .portfolio-grid,
-  .trait-grid {
+  .trait-grid,
+  .creature-form,
+  .creature-workspace,
+  .assessment-grid,
+  .score-grid,
+  .metric-grid,
+  .group-wall {
     grid-template-columns: 1fr;
   }
 
@@ -503,7 +747,8 @@ textarea {
 
   .role-grid,
   .editable-card,
-  .data-row {
+  .data-row,
+  .trait-row {
     grid-template-columns: 1fr;
   }
 
