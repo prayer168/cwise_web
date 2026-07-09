@@ -7,7 +7,6 @@ import {
   Database,
   Download,
   FileDown,
-  FileJson,
   FlaskConical,
   Gauge,
   ImageUp,
@@ -22,6 +21,7 @@ import {
   ShieldCheck,
   Sparkles,
   Sprout,
+  Table2,
   Users,
 } from "lucide-react";
 import {
@@ -219,7 +219,7 @@ function App() {
 
   const saveData = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    setSavedAt(new Date().toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }));
+    setSavedAt(`${new Date().toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })} 已儲存`);
   };
 
   const resetData = () => {
@@ -236,18 +236,19 @@ function App() {
     });
   };
 
-  const importJson = async (event) => {
+  const importWorkbook = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      const imported = normalizeState(JSON.parse(await file.text()));
+      const xlsx = await loadXlsx();
+      const imported = workbookToState(await file.arrayBuffer(), xlsx);
       setState(imported);
       setClassroomData((current) => {
         const next = [imported, ...current.filter((group) => group.groupCode !== imported.groupCode)];
         localStorage.setItem(CLASSROOM_KEY, JSON.stringify(next));
         return next;
       });
-      setSavedAt("已匯入");
+      setSavedAt("Excel 已匯入");
     } catch {
       setSavedAt("匯入失敗");
     } finally {
@@ -255,7 +256,14 @@ function App() {
     }
   };
 
-  const exportJson = () => downloadFile(`eco-detective-${state.groupCode}.json`, JSON.stringify(state, null, 2), "application/json");
+  const exportWorkbook = () => {
+    loadXlsx().then((xlsx) => {
+      const workbook = stateToWorkbook(state, xlsx);
+      const content = xlsx.write(workbook, { bookType: "xlsx", type: "array", compression: true });
+      downloadFile(`eco-detective-${state.groupCode}.xlsx`, content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      setSavedAt("Excel 已匯出");
+    });
+  };
 
   const exportCsv = () => {
     const rows = [
@@ -283,9 +291,9 @@ function App() {
           <h1>生態探員任務</h1>
         </div>
         <div className="top-actions">
-          <label className="icon-button file-action" title="匯入小組 JSON">
-            <FileJson size={20} />
-            <input type="file" accept="application/json,.json" onChange={importJson} />
+          <label className="icon-button file-action" title="匯入小組 Excel">
+            <Table2 size={20} />
+            <input type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={importWorkbook} />
           </label>
           <button className="icon-button" onClick={saveToClassroom} title="加入班級展示">
             <Database size={20} />
@@ -293,7 +301,7 @@ function App() {
           <button className="icon-button" onClick={saveData} title="儲存">
             <Save size={20} />
           </button>
-          <button className="icon-button" onClick={exportJson} title="匯出 JSON">
+          <button className="icon-button" onClick={exportWorkbook} title="匯出 Excel">
             <Download size={20} />
           </button>
           <button className="icon-button" onClick={exportCsv} title="匯出 CSV">
@@ -324,7 +332,7 @@ function App() {
         </div>
         <div>
           <span>儲存狀態</span>
-          <strong>{savedAt ? `${savedAt} 已儲存` : "尚未儲存"}</strong>
+          <strong>{savedAt || "尚未儲存"}</strong>
         </div>
       </section>
 
@@ -927,6 +935,144 @@ function chartOptions(title) {
 
 function csvCell(value) {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+async function loadXlsx() {
+  return await import("xlsx");
+}
+
+function stateToWorkbook(value, xlsx) {
+  const group = normalizeState(value);
+  const workbook = xlsx.utils.book_new();
+  appendSheet(xlsx, workbook, "小組資訊", [
+    { 欄位: "組別代碼", 內容: group.groupCode },
+    { 欄位: "調查地點", 內容: group.habitat },
+    { 欄位: "證據推論", 內容: group.inference },
+    { 欄位: "同儕回饋", 內容: group.peerReview },
+    { 欄位: "環境卡", 內容: group.creature.card },
+    { 欄位: "生物名稱", 內容: group.creature.name },
+    { 欄位: "作品圖", 內容: group.creature.image ? "已包含於隱藏資料" : "" },
+  ]);
+  appendSheet(xlsx, workbook, "小組分工", roles.map((role) => ({ 角色: role, 姓名: group.roles[role] || "" })));
+  appendSheet(xlsx, workbook, "適應配對", group.adaptation.map((row) => ({
+    生物: row.organism,
+    構造或行為: row.feature,
+    環境壓力: row.pressure,
+    功能: row.functionText,
+  })));
+  appendSheet(xlsx, workbook, "測量紀錄", group.measurements.map((row) => ({
+    地點: row.site,
+    溫度: row.temperature,
+    照度: row.light,
+    濕度: row.humidity,
+    種類數: row.speciesCount,
+    備註: row.note,
+  })));
+  appendSheet(xlsx, workbook, "生物觀察", group.observations.map((row) => ({
+    觀察名稱: row.name,
+    AI推測名稱: row.aiName,
+    數量: row.count,
+    特徵: row.feature,
+    證據: row.evidence,
+  })));
+  appendSheet(xlsx, workbook, "適應生物特徵", group.creature.traits.map((row) => ({
+    構造或行為: row.structure,
+    功能: row.functionText,
+    證據: row.evidence,
+  })));
+  appendSheet(xlsx, workbook, "任務進度", missions.map((mission) => ({
+    任務代碼: mission.id,
+    任務名稱: mission.title,
+    是否完成: group.missionStatus[mission.id] ? "是" : "否",
+  })));
+  appendSheet(xlsx, workbook, "評量規準", rubricItems.map(([key, label, description]) => ({
+    評量代碼: key,
+    評量項目: label,
+    分數: group.rubric[key],
+    說明: description,
+  })));
+  appendSheet(xlsx, workbook, "自我反思", [
+    { 題目: "我最會的探究能力", 回答: group.selfReview.strength },
+    { 題目: "我需要改進的測量技能", 回答: group.selfReview.improve },
+    { 題目: "我願意為校園生態做的一件事", 回答: group.selfReview.action },
+  ]);
+  appendSheet(xlsx, workbook, "_raw", [{ json: JSON.stringify(group) }], { hidden: true });
+  return workbook;
+}
+
+function workbookToState(arrayBuffer, xlsx) {
+  const workbook = xlsx.read(arrayBuffer, { type: "array" });
+  const raw = sheetRows(xlsx, workbook, "_raw")[0]?.json;
+  if (raw) return normalizeState(JSON.parse(raw));
+
+  const info = Object.fromEntries(sheetRows(xlsx, workbook, "小組資訊").map((row) => [row.欄位, row.內容]));
+  const roleRows = sheetRows(xlsx, workbook, "小組分工");
+  const missionRows = sheetRows(xlsx, workbook, "任務進度");
+  const rubricRows = sheetRows(xlsx, workbook, "評量規準");
+  const reflectionRows = sheetRows(xlsx, workbook, "自我反思");
+  const reflection = Object.fromEntries(reflectionRows.map((row) => [row.題目, row.回答]));
+
+  return normalizeState({
+    groupCode: info.組別代碼 || starterState.groupCode,
+    habitat: info.調查地點 || starterState.habitat,
+    inference: info.證據推論 || "",
+    peerReview: info.同儕回饋 || "",
+    roles: Object.fromEntries(roleRows.map((row) => [row.角色, row.姓名 || ""])),
+    adaptation: sheetRows(xlsx, workbook, "適應配對").map((row) => ({
+      organism: row.生物 || "",
+      feature: row.構造或行為 || "",
+      pressure: row.環境壓力 || "",
+      functionText: row.功能 || "",
+    })),
+    measurements: sheetRows(xlsx, workbook, "測量紀錄").map((row) => ({
+      site: row.地點 || "",
+      temperature: row.溫度 || "",
+      light: row.照度 || "",
+      humidity: row.濕度 || "",
+      speciesCount: row.種類數 || "",
+      note: row.備註 || "",
+    })),
+    observations: sheetRows(xlsx, workbook, "生物觀察").map((row) => ({
+      name: row.觀察名稱 || "",
+      aiName: row.AI推測名稱 || "",
+      count: row.數量 || "",
+      feature: row.特徵 || "",
+      evidence: row.證據 || "",
+    })),
+    creature: {
+      card: info.環境卡 || starterState.creature.card,
+      name: info.生物名稱 || starterState.creature.name,
+      image: "",
+      traits: sheetRows(xlsx, workbook, "適應生物特徵").map((row) => ({
+        structure: row.構造或行為 || "",
+        functionText: row.功能 || "",
+        evidence: row.證據 || "",
+      })),
+    },
+    missionStatus: Object.fromEntries(missionRows.map((row) => [row.任務代碼, row.是否完成 === "是" || row.是否完成 === true])),
+    rubric: Object.fromEntries(rubricRows.map((row) => [row.評量代碼, Number(row.分數) || 1])),
+    selfReview: {
+      strength: reflection.我最會的探究能力 || "",
+      improve: reflection.我需要改進的測量技能 || "",
+      action: reflection.我願意為校園生態做的一件事 || "",
+    },
+  });
+}
+
+function appendSheet(xlsx, workbook, name, rows, options = {}) {
+  const sheet = xlsx.utils.json_to_sheet(rows.length ? rows : [{}]);
+  xlsx.utils.book_append_sheet(workbook, sheet, name);
+  if (options.hidden) {
+    workbook.Workbook ||= {};
+    workbook.Workbook.Sheets ||= [];
+    const index = workbook.SheetNames.indexOf(name);
+    workbook.Workbook.Sheets[index] = { Hidden: 1 };
+  }
+}
+
+function sheetRows(xlsx, workbook, name) {
+  const sheet = workbook.Sheets[name];
+  return sheet ? xlsx.utils.sheet_to_json(sheet, { defval: "" }) : [];
 }
 
 function downloadFile(filename, content, type) {
