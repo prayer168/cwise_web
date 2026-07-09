@@ -75,7 +75,6 @@ export function PresentationDecks() {
             <span>第 {deck.number} 堂｜{deck.title}</span>
           </div>
           <div className="slide-content">
-            <p className="slide-kicker">{slide.type === "cover" ? "Eco Detective Mission" : `Slide ${String(slideIndex + 1).padStart(2, "0")}`}</p>
             <h1>{slide.title}</h1>
             {slide.subtitle && <h2>{slide.subtitle}</h2>}
             <ul>
@@ -114,4 +113,3 @@ export function PresentationDecks() {
     </section>
   );
 }
-
