@@ -1,0 +1,588 @@
+import React, { useMemo, useState } from "react";
+import { createRoot } from "react-dom/client";
+import {
+  BarChart3,
+  ClipboardCheck,
+  Download,
+  FileDown,
+  FlaskConical,
+  Leaf,
+  Map,
+  Microscope,
+  Presentation,
+  RefreshCcw,
+  Save,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Sprout,
+  Users,
+} from "lucide-react";
+import {
+  BarElement,
+  CategoryScale,
+  Chart as ChartJS,
+  Legend,
+  LinearScale,
+  LineElement,
+  PointElement,
+  Tooltip,
+} from "chart.js";
+import { Bar, Line } from "react-chartjs-2";
+import "./styles.css";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend);
+
+const STORAGE_KEY = "eco-detective-state-v1";
+
+const missions = [
+  {
+    id: "adaptation",
+    title: "發現適應密碼",
+    time: "09:30-11:00",
+    icon: Search,
+    focus: "辨識生物、適應特徵與環境壓力的關聯",
+  },
+  {
+    id: "tools",
+    title: "測量工具訓練",
+    time: "11:20-12:10",
+    icon: Microscope,
+    focus: "練習溫度、照度、濕度與長度測量",
+  },
+  {
+    id: "habitat",
+    title: "微棲地調查",
+    time: "13:00-13:45",
+    icon: Map,
+    focus: "分組觀察校園微棲地並記錄生物與環境資料",
+  },
+  {
+    id: "analysis",
+    title: "證據會說話",
+    time: "13:45-14:30",
+    icon: BarChart3,
+    focus: "整理資料、製作圖表、提出證據推論",
+  },
+  {
+    id: "creature",
+    title: "最強適應生物",
+    time: "14:50-15:40",
+    icon: Sparkles,
+    focus: "依環境壓力設計具證據支持的新生物",
+  },
+  {
+    id: "expo",
+    title: "成果發布會",
+    time: "15:40-16:20",
+    icon: Presentation,
+    focus: "發表調查發現、回答提問、完成互評與自評",
+  },
+];
+
+const habitats = ["陽光草地", "樹蔭下", "花圃", "生態池旁", "牆角", "落葉堆"];
+const roles = ["觀察員", "測量員", "紀錄員", "攝影員"];
+const environmentCards = ["強風乾燥屋頂", "潮濕陰暗牆角", "污染水域", "烈日草地", "低溫高山"];
+
+const starterState = {
+  groupCode: "A01",
+  habitat: "陽光草地",
+  roles: {
+    觀察員: "",
+    測量員: "",
+    紀錄員: "",
+    攝影員: "",
+  },
+  adaptation: [
+    { organism: "仙人掌", feature: "厚莖儲水、葉退化成刺", pressure: "乾燥與強光", functionText: "減少水分散失並儲存水分" },
+    { organism: "水黽", feature: "細長腳與防水細毛", pressure: "水面移動", functionText: "分散重量，在水面活動" },
+    { organism: "蚯蚓", feature: "濕潤皮膚與鑽土行為", pressure: "乾燥與土壤環境", functionText: "維持呼吸並躲避強光" },
+  ],
+  measurements: [
+    { site: "陽光草地", temperature: 31, light: 820, humidity: 34, speciesCount: 5, note: "草叢中有螞蟻與小型飛蟲" },
+    { site: "樹蔭下", temperature: 28, light: 310, humidity: 48, speciesCount: 7, note: "落葉下看到蚯蚓痕跡" },
+    { site: "花圃", temperature: 29, light: 540, humidity: 42, speciesCount: 8, note: "蝴蝶與蜜蜂停留花朵" },
+  ],
+  observations: [
+    { name: "螞蟻", aiName: "蟻科昆蟲", count: 12, feature: "群體移動，沿草地邊緣覓食", evidence: "陽光區溫度較高，仍可在地表快速移動" },
+  ],
+  inference: "花圃的生物種類較多，可能和開花植物提供食物、照度適中有關；但需要更多時間與重複測量。",
+  creature: {
+    card: "潮濕陰暗牆角",
+    name: "陰影滑行獸",
+    traits: [
+      { structure: "薄而濕潤的皮膚", functionText: "在潮濕角落維持水分交換", evidence: "樹蔭與落葉堆濕度較高時，常見潮濕偏好的生物痕跡" },
+      { structure: "扁平身體", functionText: "能躲入牆縫與落葉下", evidence: "微棲地遮蔽物多，能降低被發現機會" },
+      { structure: "夜間活動", functionText: "避開白天高溫與強光", evidence: "陰暗區照度低，適合弱光活動策略" },
+    ],
+  },
+  peerReview: "證據清楚，但可以再補充測量次數與對照地點。",
+  selfReview: {
+    strength: "我能把觀察結果整理成圖表。",
+    improve: "我需要更注意測量單位與同一高度。",
+    action: "我願意提醒同學觀察後恢復場地原狀。",
+  },
+};
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? { ...starterState, ...JSON.parse(saved) } : starterState;
+  } catch {
+    return starterState;
+  }
+}
+
+function App() {
+  const [activeView, setActiveView] = useState("mission");
+  const [state, setState] = useState(loadState);
+  const [savedAt, setSavedAt] = useState("");
+
+  const update = (patch) => setState((current) => ({ ...current, ...patch }));
+
+  const saveData = () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    setSavedAt(new Date().toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }));
+  };
+
+  const resetData = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setState(starterState);
+    setSavedAt("");
+  };
+
+  const exportJson = () => downloadFile(`eco-detective-${state.groupCode}.json`, JSON.stringify(state, null, 2), "application/json");
+
+  const exportCsv = () => {
+    const rows = [
+      ["group", "site", "temperature", "light", "humidity", "speciesCount", "note"],
+      ...state.measurements.map((row) => [
+        state.groupCode,
+        row.site,
+        row.temperature,
+        row.light,
+        row.humidity,
+        row.speciesCount,
+        row.note,
+      ]),
+    ];
+    downloadFile(`eco-detective-${state.groupCode}.csv`, rows.map((row) => row.map(csvCell).join(",")).join("\n"), "text/csv;charset=utf-8");
+  };
+
+  const chartData = useMemo(() => buildChartData(state.measurements), [state.measurements]);
+
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <div>
+          <p className="eyebrow">CWISE 生態探究課程</p>
+          <h1>生態探員任務</h1>
+        </div>
+        <div className="top-actions">
+          <button className="icon-button" onClick={saveData} title="儲存">
+            <Save size={20} />
+          </button>
+          <button className="icon-button" onClick={exportJson} title="匯出 JSON">
+            <Download size={20} />
+          </button>
+          <button className="icon-button" onClick={exportCsv} title="匯出 CSV">
+            <FileDown size={20} />
+          </button>
+          <button className="icon-button caution" onClick={resetData} title="重設資料">
+            <RefreshCcw size={20} />
+          </button>
+        </div>
+      </header>
+
+      <section className="status-strip">
+        <div>
+          <span>組別</span>
+          <strong>{state.groupCode || "未設定"}</strong>
+        </div>
+        <div>
+          <span>調查地點</span>
+          <strong>{state.habitat}</strong>
+        </div>
+        <div>
+          <span>紀錄筆數</span>
+          <strong>{state.measurements.length + state.observations.length}</strong>
+        </div>
+        <div>
+          <span>儲存狀態</span>
+          <strong>{savedAt ? `${savedAt} 已儲存` : "尚未儲存"}</strong>
+        </div>
+      </section>
+
+      <nav className="view-tabs" aria-label="主要頁面">
+        {[
+          ["mission", "任務總覽", Leaf],
+          ["student", "學生任務", ClipboardCheck],
+          ["data", "資料分析", BarChart3],
+          ["portfolio", "成果頁", Presentation],
+          ["teacher", "教師展示", ShieldCheck],
+        ].map(([id, label, Icon]) => (
+          <button key={id} className={activeView === id ? "active" : ""} onClick={() => setActiveView(id)}>
+            <Icon size={18} />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {activeView === "mission" && <MissionOverview state={state} update={update} />}
+      {activeView === "student" && <StudentTasks state={state} update={update} />}
+      {activeView === "data" && <DataDashboard state={state} update={update} chartData={chartData} />}
+      {activeView === "portfolio" && <Portfolio state={state} />}
+      {activeView === "teacher" && <TeacherDisplay />}
+    </main>
+  );
+}
+
+function MissionOverview({ state, update }) {
+  return (
+    <section className="page-grid mission-layout">
+      <div className="hero-panel">
+        <div className="hero-copy">
+          <p className="eyebrow">用測量證據解開生物適應密碼</p>
+          <h2>從校園微棲地出發，完成一場有證據的生態調查。</h2>
+          <div className="entry-row">
+            <label>
+              <span>組別代碼</span>
+              <input value={state.groupCode} onChange={(event) => update({ groupCode: event.target.value.toUpperCase() })} />
+            </label>
+            <label>
+              <span>調查地點</span>
+              <select value={state.habitat} onChange={(event) => update({ habitat: event.target.value })}>
+                {habitats.map((site) => (
+                  <option key={site}>{site}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+        <div className="specimen-board">
+          <Leaf size={52} />
+          <p>觀察</p>
+          <p>測量</p>
+          <p>推論</p>
+          <p>發表</p>
+        </div>
+      </div>
+
+      <div className="mission-track">
+        {missions.map((mission, index) => {
+          const Icon = mission.icon;
+          return (
+            <article className="mission-card" key={mission.id}>
+              <div className="mission-index">{String(index + 1).padStart(2, "0")}</div>
+              <Icon size={24} />
+              <div>
+                <h3>{mission.title}</h3>
+                <p>{mission.time}</p>
+                <span>{mission.focus}</span>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function StudentTasks({ state, update }) {
+  return (
+    <section className="page-grid two-columns">
+      <div className="panel">
+        <PanelTitle icon={Users} title="小組分工" />
+        <div className="role-grid">
+          {roles.map((role) => (
+            <label key={role}>
+              <span>{role}</span>
+              <input
+                value={state.roles[role] || ""}
+                onChange={(event) => update({ roles: { ...state.roles, [role]: event.target.value } })}
+                placeholder="姓名"
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="panel">
+        <PanelTitle icon={ShieldCheck} title="生態探員守則" />
+        <div className="rule-list">
+          <span>不捕捉</span>
+          <span>不破壞</span>
+          <span>不驚擾</span>
+          <span>拍照取代採集</span>
+          <span>AI 辨識需查證</span>
+        </div>
+      </div>
+
+      <div className="panel wide">
+        <PanelTitle icon={Sprout} title="生物適應配對" />
+        <EditableRows
+          rows={state.adaptation}
+          fields={[
+            ["organism", "生物"],
+            ["feature", "構造或行為"],
+            ["pressure", "環境壓力"],
+            ["functionText", "功能"],
+          ]}
+          onChange={(rows) => update({ adaptation: rows })}
+          emptyRow={{ organism: "", feature: "", pressure: "", functionText: "" }}
+        />
+      </div>
+
+      <div className="panel wide">
+        <PanelTitle icon={FlaskConical} title="測量與觀察紀錄" />
+        <MeasurementEditor state={state} update={update} />
+      </div>
+    </section>
+  );
+}
+
+function MeasurementEditor({ state, update }) {
+  const changeRow = (index, field, value) => {
+    const rows = state.measurements.map((row, rowIndex) => (rowIndex === index ? { ...row, [field]: value } : row));
+    update({ measurements: rows });
+  };
+  const addRow = () => update({ measurements: [...state.measurements, { site: state.habitat, temperature: "", light: "", humidity: "", speciesCount: "", note: "" }] });
+  const removeRow = (index) => update({ measurements: state.measurements.filter((_, rowIndex) => rowIndex !== index) });
+
+  return (
+    <div className="table-editor">
+      <div className="data-row header-row">
+        <span>地點</span>
+        <span>溫度</span>
+        <span>照度</span>
+        <span>濕度</span>
+        <span>種類</span>
+        <span>備註</span>
+        <span></span>
+      </div>
+      {state.measurements.map((row, index) => (
+        <div className="data-row" key={`${row.site}-${index}`}>
+          <input value={row.site} onChange={(event) => changeRow(index, "site", event.target.value)} />
+          <input type="number" value={row.temperature} onChange={(event) => changeRow(index, "temperature", event.target.value)} />
+          <input type="number" value={row.light} onChange={(event) => changeRow(index, "light", event.target.value)} />
+          <input type="number" value={row.humidity} onChange={(event) => changeRow(index, "humidity", event.target.value)} />
+          <input type="number" value={row.speciesCount} onChange={(event) => changeRow(index, "speciesCount", event.target.value)} />
+          <input value={row.note} onChange={(event) => changeRow(index, "note", event.target.value)} />
+          <button className="small-button" onClick={() => removeRow(index)} title="刪除">刪除</button>
+        </div>
+      ))}
+      <button className="add-button" onClick={addRow}>新增測量紀錄</button>
+    </div>
+  );
+}
+
+function DataDashboard({ state, update, chartData }) {
+  return (
+    <section className="page-grid two-columns">
+      <div className="panel chart-panel">
+        <PanelTitle icon={BarChart3} title="生物種類比較" />
+        <Bar data={chartData.species} options={chartOptions("種類數")} />
+      </div>
+      <div className="panel chart-panel">
+        <PanelTitle icon={FlaskConical} title="環境因子比較" />
+        <Line data={chartData.environment} options={chartOptions("測量值")} />
+      </div>
+      <div className="panel wide">
+        <PanelTitle icon={ClipboardCheck} title="證據推論" />
+        <textarea
+          value={state.inference}
+          onChange={(event) => update({ inference: event.target.value })}
+          rows={5}
+        />
+      </div>
+      <div className="panel wide">
+        <PanelTitle icon={Microscope} title="生物觀察紀錄" />
+        <EditableRows
+          rows={state.observations}
+          fields={[
+            ["name", "觀察名稱"],
+            ["aiName", "AI推測名稱"],
+            ["count", "數量"],
+            ["feature", "特徵"],
+            ["evidence", "證據"],
+          ]}
+          onChange={(rows) => update({ observations: rows })}
+          emptyRow={{ name: "", aiName: "", count: "", feature: "", evidence: "" }}
+        />
+      </div>
+    </section>
+  );
+}
+
+function Portfolio({ state }) {
+  return (
+    <section className="portfolio-page" id="portfolio-page">
+      <div className="portfolio-header">
+        <div>
+          <p className="eyebrow">成果發布會</p>
+          <h2>{state.groupCode} 小組生態調查成果</h2>
+          <p>{state.habitat}｜{state.creature.name}</p>
+        </div>
+        <button className="print-button" onClick={() => window.print()}>
+          <Presentation size={18} />
+          <span>列印成果頁</span>
+        </button>
+      </div>
+      <div className="portfolio-grid">
+        <article>
+          <h3>調查發現</h3>
+          <p>{state.inference}</p>
+        </article>
+        <article>
+          <h3>測量資料</h3>
+          <ul>
+            {state.measurements.map((row, index) => (
+              <li key={index}>{row.site}：{row.temperature}C、{row.light} lux、濕度 {row.humidity}%、種類 {row.speciesCount}</li>
+            ))}
+          </ul>
+        </article>
+        <article className="span-two">
+          <h3>最強適應生物</h3>
+          <p><strong>{state.creature.card}</strong>：{state.creature.name}</p>
+          <div className="trait-grid">
+            {state.creature.traits.map((trait, index) => (
+              <div key={index}>
+                <strong>{trait.structure}</strong>
+                <span>{trait.functionText}</span>
+                <small>{trait.evidence}</small>
+              </div>
+            ))}
+          </div>
+        </article>
+        <article>
+          <h3>同儕回饋</h3>
+          <p>{state.peerReview}</p>
+        </article>
+        <article>
+          <h3>自我反思</h3>
+          <p>{state.selfReview.strength}</p>
+          <p>{state.selfReview.improve}</p>
+          <p>{state.selfReview.action}</p>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function TeacherDisplay() {
+  return (
+    <section className="page-grid teacher-page">
+      <div className="panel">
+        <PanelTitle icon={Leaf} title="課程時程" />
+        <img className="schedule-image" src="/assets/course-schedule.jpg" alt="課程時程表" />
+      </div>
+      <div className="panel">
+        <PanelTitle icon={ClipboardCheck} title="多元評量對應" />
+        <div className="rubric-grid">
+          <span>形成性評量</span><p>配對任務、工具操作、資料欄位檢查</p>
+          <span>實作評量</span><p>微棲地觀察、測量紀錄、圖表製作</p>
+          <span>同儕互評</span><p>證據問題、改進建議、合理性檢核</p>
+          <span>總結性評量</span><p>成果發表、素養情境題、自評反思</p>
+        </div>
+      </div>
+      <div className="panel wide">
+        <PanelTitle icon={ShieldCheck} title="學習目標" />
+        <div className="goal-cloud">
+          <span>構造與功能</span>
+          <span>環境因子</span>
+          <span>測量工具</span>
+          <span>資料圖表</span>
+          <span>證據推論</span>
+          <span>同儕溝通</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function EditableRows({ rows, fields, onChange, emptyRow }) {
+  const changeRow = (index, key, value) => {
+    onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, [key]: value } : row)));
+  };
+  return (
+    <div className="editable-list">
+      {rows.map((row, index) => (
+        <div className="editable-card" key={index}>
+          {fields.map(([key, label]) => (
+            <label key={key}>
+              <span>{label}</span>
+              <input value={row[key] ?? ""} onChange={(event) => changeRow(index, key, event.target.value)} />
+            </label>
+          ))}
+          <button className="small-button" onClick={() => onChange(rows.filter((_, rowIndex) => rowIndex !== index))}>刪除</button>
+        </div>
+      ))}
+      <button className="add-button" onClick={() => onChange([...rows, emptyRow])}>新增一筆</button>
+    </div>
+  );
+}
+
+function PanelTitle({ icon: Icon, title }) {
+  return (
+    <div className="panel-title">
+      <Icon size={20} />
+      <h2>{title}</h2>
+    </div>
+  );
+}
+
+function buildChartData(rows) {
+  const labels = rows.map((row) => row.site || "未命名");
+  return {
+    species: {
+      labels,
+      datasets: [
+        {
+          label: "生物種類數",
+          data: rows.map((row) => Number(row.speciesCount) || 0),
+          backgroundColor: "#3b7f6f",
+          borderRadius: 6,
+        },
+      ],
+    },
+    environment: {
+      labels,
+      datasets: [
+        { label: "溫度 C", data: rows.map((row) => Number(row.temperature) || 0), borderColor: "#b55b35", backgroundColor: "#b55b35", tension: 0.35 },
+        { label: "照度 / 20", data: rows.map((row) => (Number(row.light) || 0) / 20), borderColor: "#d2a72c", backgroundColor: "#d2a72c", tension: 0.35 },
+        { label: "濕度 %", data: rows.map((row) => Number(row.humidity) || 0), borderColor: "#2979a8", backgroundColor: "#2979a8", tension: 0.35 },
+      ],
+    },
+  };
+}
+
+function chartOptions(title) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: "#24413a", font: { size: 13 } } },
+      tooltip: { mode: "index", intersect: false },
+    },
+    scales: {
+      x: { ticks: { color: "#38514b" }, grid: { color: "rgba(50, 82, 73, 0.08)" } },
+      y: { title: { display: true, text: title, color: "#38514b" }, ticks: { color: "#38514b" }, grid: { color: "rgba(50, 82, 73, 0.12)" } },
+    },
+  };
+}
+
+function csvCell(value) {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+createRoot(document.getElementById("root")).render(<App />);
