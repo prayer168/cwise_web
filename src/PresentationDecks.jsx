@@ -1,22 +1,30 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, Play, Projector, Rows3 } from "lucide-react";
 import { presentationDecks } from "./presentationData";
 
 export function PresentationDecks() {
   const [deckId, setDeckId] = useState(presentationDecks[0].id);
   const [slideIndex, setSlideIndex] = useState(0);
+  const lastWheelAt = useRef(0);
   const deck = useMemo(() => presentationDecks.find((item) => item.id === deckId) || presentationDecks[0], [deckId]);
   const slide = deck.slides[slideIndex] || deck.slides[0];
+  const goToSlide = (direction) => {
+    setSlideIndex((current) => {
+      if (direction > 0) return Math.min(deck.slides.length - 1, current + 1);
+      if (direction < 0) return Math.max(0, current - 1);
+      return current;
+    });
+  };
 
   useEffect(() => {
     const handleKey = (event) => {
       if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
         event.preventDefault();
-        setSlideIndex((current) => Math.min(deck.slides.length - 1, current + 1));
+        goToSlide(1);
       }
       if (event.key === "ArrowLeft" || event.key === "PageUp") {
         event.preventDefault();
-        setSlideIndex((current) => Math.max(0, current - 1));
+        goToSlide(-1);
       }
       if (event.key === "Home") setSlideIndex(0);
       if (event.key === "End") setSlideIndex(deck.slides.length - 1);
@@ -28,6 +36,14 @@ export function PresentationDecks() {
   const chooseDeck = (id) => {
     setDeckId(id);
     setSlideIndex(0);
+  };
+
+  const handleWheel = (event) => {
+    const now = Date.now();
+    if (now - lastWheelAt.current < 650 || Math.abs(event.deltaY) < 18) return;
+    event.preventDefault();
+    lastWheelAt.current = now;
+    goToSlide(event.deltaY > 0 ? 1 : -1);
   };
 
   return (
@@ -67,7 +83,7 @@ export function PresentationDecks() {
           </div>
         </div>
 
-        <article className={`slide-stage slide-${slide.type} accent-${deck.accent}`}>
+        <article className={`slide-stage slide-${slide.type} accent-${deck.accent}`} onWheel={handleWheel}>
           <img className="slide-bg" src={slide.image} alt="" />
           <div className="slide-scrim" />
           <div className="slide-header">
@@ -96,11 +112,11 @@ export function PresentationDecks() {
         </article>
 
         <div className="deck-nav">
-          <button onClick={() => setSlideIndex((current) => Math.max(0, current - 1))} disabled={slideIndex === 0}>
+          <button onClick={() => goToSlide(-1)} disabled={slideIndex === 0}>
             <ChevronLeft size={18} />
             <span>上一頁</span>
           </button>
-          <button onClick={() => setSlideIndex((current) => Math.min(deck.slides.length - 1, current + 1))} disabled={slideIndex === deck.slides.length - 1}>
+          <button onClick={() => goToSlide(1)} disabled={slideIndex === deck.slides.length - 1}>
             <span>下一頁</span>
             <ChevronRight size={18} />
           </button>
