@@ -15,6 +15,7 @@ import {
   Microscope,
   Plus,
   Presentation,
+  Projector,
   RefreshCcw,
   Save,
   Search,
@@ -35,6 +36,7 @@ import {
   Tooltip,
 } from "chart.js";
 import { Bar, Line } from "react-chartjs-2";
+import { PresentationDecks } from "./PresentationDecks";
 import "./styles.css";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend);
@@ -342,6 +344,7 @@ function App() {
           ["student", "學生任務", ClipboardCheck],
           ["data", "資料分析", BarChart3],
           ["portfolio", "成果頁", Presentation],
+          ["slides", "課程簡報", Projector],
           ["teacher", "教師展示", ShieldCheck],
         ].map(([id, label, Icon]) => (
           <button key={id} className={activeView === id ? "active" : ""} onClick={() => setActiveView(id)}>
@@ -355,6 +358,7 @@ function App() {
       {activeView === "student" && <StudentTasks state={state} update={update} />}
       {activeView === "data" && <DataDashboard state={state} update={update} chartData={chartData} />}
       {activeView === "portfolio" && <Portfolio state={state} />}
+      {activeView === "slides" && <PresentationDecks />}
       {activeView === "teacher" && <TeacherDisplay state={state} classroomData={classroomData} setClassroomData={setClassroomData} />}
     </main>
   );
