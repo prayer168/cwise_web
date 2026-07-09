@@ -7,6 +7,7 @@ import {
   Database,
   Download,
   FileDown,
+  FileText,
   FlaskConical,
   Gauge,
   ImageUp,
@@ -283,6 +284,12 @@ function App() {
     downloadFile(`eco-detective-${state.groupCode}.csv`, rows.map((row) => row.map(csvCell).join(",")).join("\n"), "text/csv;charset=utf-8");
   };
 
+  const exportPdf = () => {
+    setActiveView("portfolio");
+    setSavedAt("請在列印視窗選擇另存為 PDF");
+    window.setTimeout(() => window.print(), 120);
+  };
+
   const chartData = useMemo(() => buildChartData(state.measurements), [state.measurements]);
 
   return (
@@ -315,9 +322,15 @@ function App() {
           <button className="icon-button" onClick={exportWorkbook} title="匯出 Excel">
             <Download size={20} />
           </button>
-          <button className="icon-button" onClick={exportCsv} title="匯出 CSV">
-            <FileDown size={20} />
-          </button>
+          <div className="export-actions" aria-label="匯出工具">
+            <button className="icon-button" onClick={exportCsv} title="匯出 CSV">
+              <FileDown size={20} />
+            </button>
+            <button className="pdf-export-button" onClick={exportPdf} title="匯出 PDF">
+              <FileText size={18} />
+              <span>匯出 PDF</span>
+            </button>
+          </div>
           <button className="icon-button caution" onClick={resetData} title="重設資料">
             <RefreshCcw size={20} />
           </button>

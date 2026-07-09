@@ -66,12 +66,17 @@ h1 {
 }
 
 .top-actions,
+.export-actions,
 .view-tabs,
 .entry-row,
 .portfolio-header {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.export-actions {
+  flex: 0 0 auto;
 }
 
 .icon-button {
@@ -103,6 +108,7 @@ h1 {
 
 .icon-button:hover,
 .template-download-button:hover,
+.pdf-export-button:hover,
 .view-tabs button:hover,
 .print-button:hover,
 .add-button:hover,
@@ -123,6 +129,24 @@ h1 {
   border-radius: 8px;
   color: #173f35;
   background: #eaf6ef;
+  font-size: 0.92rem;
+  font-weight: 900;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.pdf-export-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 112px;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid rgba(129, 75, 34, 0.28);
+  border-radius: 8px;
+  color: #5d351a;
+  background: #fff7e8;
   font-size: 0.92rem;
   font-weight: 900;
   text-decoration: none;
